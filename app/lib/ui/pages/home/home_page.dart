@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_card_swiper/flutter_card_swiper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:photo_manager/photo_manager.dart';
-import 'package:swipe_cards/swipe_cards.dart';
 import 'package:wechat_assets_picker/wechat_assets_picker.dart';
 
 class HomePage extends StatefulWidget {
@@ -15,9 +14,8 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  List<XFile> allFiles = [];
-  List<File?> allFiles2 = [];
-  List<AssetEntity>? assets = [];
+  List<XFile?> allFiles = [];
+  List<AssetEntity> assetEntities = []; // Store asset entities from the gallery
 
   List<AssetEntity> assetsToDelete = [];
 
@@ -29,24 +27,63 @@ class _HomePageState extends State<HomePage> {
           .deleteWithIds(assets.map((asset) => asset.id).toList());
     }
 
-    Future<void> photoManager() async {
-      PhotoManager.setIgnorePermissionCheck(true);
-      final List<AssetEntity>? result = await AssetPicker.pickAssets(context);
-      final files =
-          await Future.wait(result!.map((e) async => await e.file).toList());
+    Future<void> getImages() async {
+      final ImagePicker picker = ImagePicker();
+      var response = await picker.pickMultiImage();
+
+      List<AssetEntity> assets = [];
+      for (XFile file in response) {
+        final List<AssetPathEntity> paths =
+            await PhotoManager.getAssetPathList(onlyAll: true);
+
+        for (AssetPathEntity path in paths) {
+          List<AssetEntity> entities = await path.getAssetListRange(
+            start: 0,
+            end: 10000,
+          );
+          for (AssetEntity entity in entities) {
+            File? entityFile = await entity.file;
+            print('\n\nentity path: ${entityFile?.path}\n\n');
+            print('\n\nfile path: ${file.path}\n\n');
+            if (entityFile?.path == file.path) {
+              assets.add(entity);
+            }
+          }
+        }
+      }
+
       setState(() {
-        assets = result;
-        allFiles2 = files;
+        // allFiles = response.map((xfile) => File(xfile.path)).toList();
+        allFiles = response;
+        assetEntities = assets;
       });
-      debugPrint(allFiles2.toString());
     }
 
-    var cardItems = allFiles2
+    Future<void> deletePhoto(int index) async {
+      String filePath = allFiles[index]!.path;
+      final file = File(filePath);
+      if (await file.exists()) {
+        await file.delete();
+        debugPrint('photo deleted successfully');
+      } else {
+        debugPrint('photo does not exist');
+      }
+
+      try {
+        String assetId = assetEntities[index].id;
+        await PhotoManager.editor.deleteWithIds([assetId]);
+        debugPrint('Successfully deleted photo');
+      } catch (e) {
+        debugPrint('Error deleting from gallery: $e');
+      }
+    }
+
+    var cardItems = allFiles
         .map((e) => Container(
               width: 500,
               height: 500,
               alignment: Alignment.center,
-              child: Image.file(e!),
+              child: Image.file(File(e!.path)),
             ))
         .toList();
 
@@ -55,7 +92,7 @@ class _HomePageState extends State<HomePage> {
         title: const Text('Home'),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => photoManager(),
+        onPressed: () => getImages(),
         tooltip: 'Increment',
         child: const Icon(Icons.add),
       ),
@@ -65,13 +102,12 @@ class _HomePageState extends State<HomePage> {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Flexible(
-              child: cardItems.length > 1
+              child: allFiles.length > 1
                   ? CardSwiper(
                       onSwipe: (index, y, direction) {
                         if (direction == CardSwiperDirection.left) {
-                          setState(() {
-                            assetsToDelete.add(assets![index]);
-                          });
+                          print('deleting photo');
+                          deletePhoto(index);
                         }
                         return true;
                       },
@@ -81,7 +117,7 @@ class _HomePageState extends State<HomePage> {
                       cardBuilder: (context, index, percentThresholdX,
                               percentThresholdY) =>
                           cardItems[index],
-                      cardsCount: cardItems.length)
+                      cardsCount: allFiles.length)
                   : Container(),
             ),
             ElevatedButton(

@@ -41,10 +41,16 @@ dependencies:
   photo_manager: ^3.5.0
   wechat_assets_picker: ^9.3.2
   flutter_card_swiper: ^7.0.2
+  mobx: ^2.3.3+2
+  flutter_mobx: ^2.2.1+1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+
+
+  build_runner:
+  mobx_codegen:
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is

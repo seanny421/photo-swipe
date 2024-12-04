@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:app/ui/pages/home/home_viewmodel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_card_swiper/flutter_card_swiper.dart';
@@ -26,10 +24,10 @@ class HomePage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Observer(builder: (context) {
-              var cardItems = viewModel.allFiles
+              List<Widget> cardItems = viewModel.allFiles
                   .map((e) => Container(
-                        width: 500,
-                        height: 500,
+                        width: double.infinity,
+                        height: double.infinity,
                         alignment: Alignment.center,
                         child: Image.file(e!),
                       ))
@@ -37,6 +35,10 @@ class HomePage extends StatelessWidget {
               return Flexible(
                 child: cardItems.length > 1
                     ? CardSwiper(
+                        onEnd: () {
+                          cardItems.clear();
+                        },
+                        isLoop: false,
                         onSwipe: (index, y, direction) {
                           if (direction == CardSwiperDirection.left) {
                             viewModel.assetsToDelete
@@ -51,15 +53,15 @@ class HomePage extends StatelessWidget {
                                 percentThresholdY) =>
                             cardItems[index],
                         cardsCount: cardItems.length)
-                    : Container(),
+                    : viewModel.assetsToDelete.isNotEmpty
+                        ? Center(
+                            child: ElevatedButton(
+                                onPressed: () => print('yo'),
+                                child: const Text('Continue')),
+                          )
+                        : Container(),
               );
             }),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 100.0),
-              child: ElevatedButton(
-                  onPressed: () => viewModel.deletePhotos(),
-                  child: const Text("DELETE")),
-            )
           ],
         ),
       ),
